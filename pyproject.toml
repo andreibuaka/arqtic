@@ -1,0 +1,36 @@
+[project]
+name = "arqtic"
+version = "0.1.0"
+description = "Weather Data Pipeline — Arctiq Take-Home Assessment"
+requires-python = ">=3.14"
+dependencies = [
+    "openmeteo-requests==1.7.5",
+    "retry-requests==2.0.0",
+    "requests-cache==1.3.0",
+    "pandas==2.3.3",
+    "duckdb==1.4.4",
+    "pandera==0.29.0",
+    "streamlit==1.54.0",
+    "plotly==6.5.2",
+    "prophet==1.3.0",
+    "gcsfs==2026.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.2",
+    "ruff==0.15.0",
+    "pre-commit==4.5.1",
+    "diagrams==0.25.1",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: full E2E pipeline test (hits real API)"]
