@@ -132,29 +132,33 @@ def load_live_weather(lat: float, lon: float, tz: str):
 
 # ---------------------------------------------------------------------------
 # Parquet data loading (for default city)
+# Uses pandas for GCS paths (gcsfs handles auth), DuckDB for local files.
 # ---------------------------------------------------------------------------
+def _read_parquet(path: str) -> pd.DataFrame:
+    """Read a Parquet file from local disk or GCS."""
+    if path.startswith("gs://"):
+        return pd.read_parquet(path)
+    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
+
+
 @st.cache_data(ttl=600)
 def load_daily():
-    path = f"{DATA_PATH}/daily/weather.parquet"
-    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
+    return _read_parquet(f"{DATA_PATH}/daily/weather.parquet")
 
 
 @st.cache_data(ttl=600)
 def load_hourly():
-    path = f"{DATA_PATH}/hourly/weather.parquet"
-    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
+    return _read_parquet(f"{DATA_PATH}/hourly/weather.parquet")
 
 
 @st.cache_data(ttl=600)
 def load_sun():
-    path = f"{DATA_PATH}/sun/times.parquet"
-    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
+    return _read_parquet(f"{DATA_PATH}/sun/times.parquet")
 
 
 @st.cache_data(ttl=600)
 def load_aqi():
-    path = f"{DATA_PATH}/aqi/quality.parquet"
-    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
+    return _read_parquet(f"{DATA_PATH}/aqi/quality.parquet")
 
 
 # ---------------------------------------------------------------------------

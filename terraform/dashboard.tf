@@ -43,7 +43,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
       resources {
         limits = {
           cpu    = "1"
-          memory = "1Gi"
+          memory = "2Gi"
         }
       }
 
@@ -51,9 +51,10 @@ resource "google_cloud_run_v2_service" "dashboard" {
         tcp_socket {
           port = 8080
         }
-        initial_delay_seconds = 5
-        failure_threshold     = 3
-        period_seconds        = 10
+        initial_delay_seconds = 10
+        failure_threshold     = 5
+        period_seconds        = 15
+        timeout_seconds       = 5
       }
     }
   }
