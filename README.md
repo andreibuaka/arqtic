@@ -82,27 +82,6 @@ The other three tabs handle trends (interactive time-series with anomaly markers
 
 **Open-Meteo's Historical Forecast and Ensemble APIs**: Most people use Open-Meteo for current and forecast data. I discovered they also expose archived NWP predictions (what each model predicted for past dates) and an Ensemble API with 139 individual ensemble members across 4 models. This is what enabled the full model comparison — I could evaluate each model's historical accuracy against actual observations and prove the multi-model average works better than any single source.
 
-## What AI Helped With and Where I Focused
-
-I used AI (Cursor) as a tool throughout this project. Here's how that broke down:
-
-**Files where AI did the heavy lifting** — these are well-known patterns where a single prompt produces good output:
-- `Dockerfile` — multi-stage Docker builds follow a well-known structure
-- `.github/workflows/ci.yml` and `deploy.yml` — CI/CD yaml is boilerplate
-- `terraform/*.tf` — infrastructure config follows provider documentation closely
-- `.pre-commit-config.yaml`, `.dockerignore`, `.gitignore`, `Makefile` — standard project scaffolding
-- `pyproject.toml` — package configuration
-
-**Files where the important logic lives** — these required deeper thinking about the problem:
-- `pipeline/transform.py` — the core enrichment logic: how to map temperatures to comfort labels, what thresholds define "windy" or "low visibility", how to detect anomalies. These are judgment calls about what makes weather data useful to a person, not code patterns you can template.
-- `dashboard/components/current.py` — every UX decision about the "Right Now" tab: what alerts to show, how to structure the day into morning/afternoon/evening, when to say "snow" vs "rain", what "silence means safe" looks like in practice.
-- `pipeline/quality.py` — the Pandera schema design, including the Python 3.14 workaround that took real debugging to find.
-- `pipeline/extract.py` — the SDK workaround for sunrise/sunset, and integrating the air quality API as an additional source (so if it fails, the rest of the pipeline keeps going).
-- `forecast/predict.py` — the decision to move from Prophet-only to a multi-model ensemble with bias correction. Choosing which NWP models to average, how to handle missing model data adaptively, the 14-day rolling window for bias correction, and how to split responsibilities between physics models and Prophet. This came from measuring everything against baselines and following the results.
-- `config.py` — small file, but the decisions about what to make configurable and what defaults to use shape how adaptable the whole project is.
-
-The split makes sense: AI is good at generating patterns that are well-documented elsewhere. The parts that matter — what "comfortable" means, what alerts are useful, which forecasting strategy actually works — need someone thinking about the actual problem and measuring the results.
-
 ## Testing
 
 ```bash
