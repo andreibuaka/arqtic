@@ -11,34 +11,43 @@ import pandas as pd
 import streamlit as st
 
 
-def render_quality(daily_df: pd.DataFrame, data_path: str):
+def render_quality(daily_df: pd.DataFrame, data_path: str, is_live: bool = False):
     """Render the Data Quality tab."""
     st.markdown("#### Pipeline Health")
 
     col1, col2, col3 = st.columns(3)
 
     # --- Freshness ---
-    parquet_path = f"{data_path}/daily/weather.parquet"
-    if not data_path.startswith("gs://") and os.path.exists(parquet_path):
-        mtime = os.path.getmtime(parquet_path)
-        last_updated = datetime.fromtimestamp(mtime, tz=timezone.utc)
-        age_hours = (datetime.now(tz=timezone.utc) - last_updated).total_seconds() / 3600
-        if age_hours < 6:
-            freshness = "🟢 Fresh"
-        elif age_hours < 12:
-            freshness = "🟡 Aging"
-        else:
-            freshness = "🔴 Stale"
-
+    if is_live:
         col1.metric(
-            label="Data Freshness",
-            value=freshness,
-            delta=f"Updated {age_hours:.0f}h ago",
+            label="Data Source",
+            value="🟢 Live API",
+            delta="Fetched from Open-Meteo",
             delta_color="off",
             border=True,
         )
     else:
-        col1.metric(label="Data Freshness", value="⚪ Cloud", border=True)
+        parquet_path = f"{data_path}/daily/weather.parquet"
+        if not data_path.startswith("gs://") and os.path.exists(parquet_path):
+            mtime = os.path.getmtime(parquet_path)
+            last_updated = datetime.fromtimestamp(mtime, tz=timezone.utc)
+            age_hours = (datetime.now(tz=timezone.utc) - last_updated).total_seconds() / 3600
+            if age_hours < 6:
+                freshness = "🟢 Fresh"
+            elif age_hours < 12:
+                freshness = "🟡 Aging"
+            else:
+                freshness = "🔴 Stale"
+
+            col1.metric(
+                label="Data Freshness",
+                value=freshness,
+                delta=f"Updated {age_hours:.0f}h ago",
+                delta_color="off",
+                border=True,
+            )
+        else:
+            col1.metric(label="Data Freshness", value="⚪ Cloud", border=True)
 
     # --- Validation status ---
     col2.metric(

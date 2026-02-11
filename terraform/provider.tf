@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "arqtic-tf-state"
+    bucket = "arqtic-weather-tfstate"
     prefix = "terraform/state"
   }
 }

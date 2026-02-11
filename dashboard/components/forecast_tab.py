@@ -12,8 +12,17 @@ from pipeline.transform import COMFORT_TRANSLATIONS, _get_stress_category
 
 
 @st.fragment
-def render_forecast(daily_df: pd.DataFrame):
+def render_forecast(daily_df: pd.DataFrame, has_historical: bool = True):
     """Render the Forecast tab with Prophet predictions."""
+    if not has_historical:
+        st.markdown("#### Forecast")
+        st.info(
+            "This tab runs a 30-day Prophet forecast using historical training data. "
+            "Prophet is available for the default city which has years of stored data.\n\n"
+            "Current conditions and the short-term outlook are in the **Right Now** and **Trends** tabs."
+        )
+        return
+
     from forecast.predict import make_forecast
 
     st.markdown("#### 30-Day Temperature Forecast")
