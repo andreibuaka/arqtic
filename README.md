@@ -30,7 +30,7 @@ For the data tool, I chose **DuckDB** over BigQuery or Snowflake. This is a weat
 
 **Pandera** handles data quality. Every row gets validated against a schema before it reaches storage — things like impossible temperatures or negative wind speeds get rejected immediately.
 
-The dashboard is **Streamlit + Plotly** for interactive drill-down, and **Prophet** handles the 30-day forecast, showing both the prediction and the range of likely outcomes.
+The dashboard is **Streamlit + Plotly** for interactive drill-down. For forecasting, I average 4 independent physics models (ECMWF, GFS, ICON, GEM) with a rolling bias correction for the first 16 days, then **Prophet** extends the seasonal outlook to day 30. The ensemble approach outperforms any single model because their independent errors cancel out.
 
 Everything is deployed through **Terraform** (Cloud Run, GCS, Scheduler, IAM) with **GitHub Actions** for CI/CD — lint and test on every PR, build and deploy on merge to main.
 
@@ -56,7 +56,7 @@ The primary tab ("Right Now") is designed for someone checking the weather at 7a
 
 If there's no alert for something (wind, visibility, air quality), that means it's fine. Silence means safe.
 
-The other three tabs handle trends (interactive time-series with anomaly markers), a 30-day Prophet forecast, and a data quality view showing freshness and validation status.
+The other three tabs handle trends (interactive time-series with anomaly markers), a forecast view (multi-model ensemble for the next 16 days with uncertainty bands, plus Prophet's seasonal extension to day 30), and a data quality view showing freshness and validation status.
 
 ## Decisions and Trade-offs
 
@@ -70,6 +70,8 @@ The other three tabs handle trends (interactive time-series with anomaly markers
 
 **Everything is configurable**: City, coordinates, timezone, date range, storage path, cache expiry — all driven by environment variables with sensible defaults. This means the next person doesn't have to change code to point it at Vancouver or London. They change a config value. I think this matters more than people realize — you build something once that works for any city, and any engineer can pick it up, understand it, and extend it without rewriting anything. That's the kind of thing that lasts.
 
+**Multi-model ensemble instead of Prophet alone**: I started with Prophet as the forecasting model. Then I measured it against real baselines and discovered it averages about 4°C error — fine for seasonal trends, but the physics-based weather models from national agencies are far more accurate day-to-day. So I pull archived predictions from 4 independent models (ECMWF, GFS, ICON, GEM) via Open-Meteo's Historical Forecast API, average them, and apply a 14-day rolling bias correction. The ensemble beats any single model because their independent errors cancel out. Prophet still has a role — it extends the seasonal outlook beyond the 16-day physics horizon to day 30, where no physics model can reach. I tested all 7 methods (4 individual models, ensemble raw, ensemble corrected, Prophet, climatology, persistence) against the same historical data. The notebook walks through the full comparison.
+
 ## Things I Discovered
 
 **Pandera on Python 3.14**: The standard `import pandera as pa` fails with a `KeyError` on Python 3.14. The fix is `import pandera.pandas as pa`. This isn't documented anywhere — I found it through debugging when the pipeline kept crashing on import.
@@ -77,6 +79,8 @@ The other three tabs handle trends (interactive time-series with anomaly markers
 **Open-Meteo SDK can't read sunrise/sunset**: The `openmeteo_requests` SDK chokes on string fields like sunrise and sunset times (it expects numeric data). I bypassed this with direct HTTP calls for those specific fields. The SDK still handles all the numeric weather data fine.
 
 **Rain vs snow detection**: Weather codes alone aren't reliable for distinguishing rain from snow at borderline temperatures. I added a simple rule: if the average temperature is at or below 2 degrees C, call it snow. More accurate than just relying on weather codes.
+
+**Open-Meteo's Historical Forecast and Ensemble APIs**: Most people use Open-Meteo for current and forecast data. I discovered they also expose archived NWP predictions (what each model predicted for past dates) and an Ensemble API with 139 individual ensemble members across 4 models. This is what enabled the full model comparison — I could evaluate each model's historical accuracy against actual observations and prove the multi-model average works better than any single source.
 
 ## What AI Helped With and Where I Focused
 
@@ -94,9 +98,10 @@ I used AI (Cursor) as a tool throughout this project. Here's how that broke down
 - `dashboard/components/current.py` — every UX decision about the "Right Now" tab: what alerts to show, how to structure the day into morning/afternoon/evening, when to say "snow" vs "rain", what "silence means safe" looks like in practice.
 - `pipeline/quality.py` — the Pandera schema design, including the Python 3.14 workaround that took real debugging to find.
 - `pipeline/extract.py` — the SDK workaround for sunrise/sunset, and integrating the air quality API as an additional source (so if it fails, the rest of the pipeline keeps going).
+- `forecast/predict.py` — the decision to move from Prophet-only to a multi-model ensemble with bias correction. Choosing which NWP models to average, how to handle missing model data adaptively, the 14-day rolling window for bias correction, and how to split responsibilities between physics models and Prophet. This came from measuring everything against baselines and following the results.
 - `config.py` — small file, but the decisions about what to make configurable and what defaults to use shape how adaptable the whole project is.
 
-The split makes sense: AI is good at generating patterns that are well-documented elsewhere. The parts that matter — what "comfortable" means, what alerts are useful, how to handle edge cases — need someone thinking about the actual problem.
+The split makes sense: AI is good at generating patterns that are well-documented elsewhere. The parts that matter — what "comfortable" means, what alerts are useful, which forecasting strategy actually works — need someone thinking about the actual problem and measuring the results.
 
 ## Testing
 
@@ -134,7 +139,7 @@ arqtic/
 │   ├── app.py               # Streamlit main app
 │   └── components/          # Tab renderers (current, trends, forecast, quality)
 ├── forecast/
-│   └── predict.py           # Prophet wrapper
+│   └── predict.py           # Multi-model ensemble, bias correction, Prophet
 ├── terraform/               # GCP infrastructure (Cloud Run, GCS, Scheduler, IAM)
 ├── tests/                   # Unit + integration tests
 ├── notebook/
