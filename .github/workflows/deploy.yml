@@ -1,7 +1,8 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -31,7 +32,7 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/arqtic/arqtic:latest .
+          docker build --platform linux/amd64 -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/arqtic/arqtic:latest .
           docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/arqtic/arqtic:latest
 
       - name: Setup Terraform
